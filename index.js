@@ -24,42 +24,120 @@ app.command('/recap', async ({ command, ack, respond, client }) => {
   try {
     const history = await client.conversations.history({
       channel: command.channel_id,
-      limit: 10,
+      limit: 50,
     });
+    
+    const userNames = await fetchUserNames(client, history.messages);
 
     const transcript = history.messages
       .reverse()
       .map(msg => {
-        const who = msg.user ? `<@${msg.user}>` : '_system_';
+        const who = msg.user
+          ? `<@${msg.user}>`
+          : '_system_';
         return `${who}: ${msg.text || '[no text]'}`;
       })
       .join('\n');
 
-    const prompt = `
-Please provide a concise bullet-point summary of this Slack conversation:
-
-${transcript}
-`.trim();
-
+      const prompt = `
+      <identity>
+      You are an AI assistant that reads Slack channel conversations and produces concise, high-value recaps.
+      When asked for your name, you must respond with "ChannelRecapBot".
+      Follow the user's requirements carefully & to the letter.
+      Avoid content that violates privacy—do not include verbatim sensitive information.
+      If asked to generate content unrelated to summarization of Slack channels, respond with "Sorry, I can't assist with that."
+      Keep your answers short and impersonal.
+      </identity>
+      
+      <instructions>
+      You are a highly sophisticated automated summarization agent with expert-level knowledge of Slack’s conversational context.
+      When invoked, fetch only the messages since the user’s last unread.
+      • Output exactly 4–6 bullet points as plain text, each starting with "• ".
+      • Include only:
+         – Key topics discussed
+         – Decisions made
+         – Action items (with assignees, using <@UID> mentions)
+         – Important links or files shared
+      • Use Slack mention syntax (<@UID>) so Slack will render display names.
+      • Omit trivial chit-chat (greetings, emojis, filler).
+      • Do NOT include any JSON, code fences, headers, or footers—just the bullets.
+      </instructions>
+      
+      Here is the conversation transcript:
+      ${transcript}
+      `.trim();      
+      console.log(transcript);
     const aiRes = await axios.post(
       'https://ai.hackclub.com/chat/completions',
       { messages: [{ role: 'user', content: prompt }] }
     );
+    const rawSummary = aiRes.data.choices[0].message.content.trim();
 
-    const summary = aiRes.data.choices[0].message.content.trim();
+    const bullets = rawSummary
+      .split(/\r?\n/)
+      .filter(line => line.trim())
+      .map(line => line.replace(/^[-•\d\.\)]\s*/, ''));
+
+    const blocks = [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: '📝 Channel Summary' }
+      },
+      { type: 'divider' },
+      ...bullets.map(point => ({
+        type: 'section',
+        text: { type: 'mrkdwn', text: `• ${point}` }
+      })),
+      { type: 'divider' },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `_Summarized for <@${command.user_id}> • ${new Date().toLocaleString()}_`
+          }
+        ]
+      }
+    ];
 
     await respond({
-      response_type: 'ephemeral', 
-      text: `*Here’s your summary:*\n${summary}`,
+      response_type: 'ephemeral',
+      blocks
     });
+
   } catch (err) {
     console.error('Recap error:', err);
     await respond({
       response_type: 'ephemeral',
-      text: "Sorry, I couldn't generate a summary right now.",
+      text: "Sorry, I couldn't generate a summary right now."
     });
   }
 });
+
+async function fetchUserNames(clients,messages){
+  const userIds = [
+    ...new Set(
+      messages
+        .map(m => m.user)
+        .filter(u => typeof u === 'string')
+    )
+  ];
+
+  const userNames = {};
+  await Promise.all(
+    userIds.map(async id => {
+      try {
+        const res = await clients.users.info({ user: id });
+        const profile = res.user.profile || {};
+        userNames[id] = profile.display_name_normalized || profile.real_name_normalized || res.user.name;
+      } catch (err) {
+        console.error(`Error fetching user info for ${id}:`, err);
+      }
+    })
+  );
+
+  return userNames;
+}
 
 (async () => {
   const port = process.env.PORT || 3000;
