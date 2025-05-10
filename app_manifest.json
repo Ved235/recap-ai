@@ -1,0 +1,43 @@
+{
+    "display_information": {
+        "name": "slack ai"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "slack ai",
+            "always_online": false
+        },
+        "slash_commands": [
+            {
+                "command": "/recap",
+                "url": "https://c4c7-223-190-86-250.ngrok-free.app/slack/events",
+                "description": "summary",
+                "should_escape": true
+            }
+        ]
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "channels:history",
+                "chat:write",
+                "commands",
+                "groups:history",
+                "users.profile:read",
+                "users:read",
+                "app_mentions:read"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "request_url": "https://c4c7-223-190-86-250.ngrok-free.app/slack/events",
+            "bot_events": [
+                "app_mention"
+            ]
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}

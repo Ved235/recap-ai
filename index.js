@@ -19,6 +19,110 @@ const app = new App({
   receiver,
 });
 
+app.event("app_mention", async ({ event, client }) => {
+  try {
+    const text = (event.text || "").toLowerCase();
+    if (!text.includes("recap")) {
+      console.log("Not a recap request");
+      return;
+    }
+
+    const channelId = event.channel;
+    const threadTs = event.thread_ts || event.ts;
+    const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+
+    const messages = [];
+
+    if (event.thread_ts) {
+      console.log("Thread message");
+      const { messages: thread } = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+      });
+      messages.push(thread[0]);
+      for (const reply of thread.slice(1)) {
+        reply.is_reply = true;
+        messages.push(reply);
+      }
+      // Remove the last message because it would be the recap command
+      messages.pop(); 
+    }
+
+    console.log("messages",messages);
+    const userNames = await fetchUserNames(client, messages);
+    const transcript = messages
+      .map((msg) => {
+        const indent = msg.is_reply ? "  ↳ " : "";
+        const who = `<@${msg.user}>`;
+        const name = userNames[msg.user] || msg.user;
+        return `${indent}${who} (${name}): ${msg.text}`;
+      })
+      .join("\n");
+      const prompt = buildYourPrompt(transcript);
+
+      const aiRes = await axios.post(
+        "https://ai.hackclub.com/chat/completions",
+        {
+          messages: [{ role: "user", content: prompt }],
+        }
+      );
+
+      let rawSummary = aiRes.data.choices[0].message.content.trim();
+
+      let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
+
+      const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      for (const [uid, name] of Object.entries(userNames)) {
+        const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
+        cleaned = cleaned.replace(re, `<@${uid}>`);
+      }
+
+      cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
+
+      const bullets = cleaned
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith("•"))
+        .map((l) => l.replace(/^•\s*/, ""));
+
+      const blocks = [
+        {
+          type: "header",
+          text: { type: "plain_text", text: "📝 thread summary" },
+        },
+        { type: "divider" },
+        ...bullets.map((pt) => ({
+          type: "section",
+          text: { type: "mrkdwn", text: `• ${pt}` },
+        })),
+        { type: "divider" },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `_Summarized for <@${
+                event.user
+              }> • ${new Date().toLocaleString()}_`,
+            },
+          ],
+        },
+      ];
+
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: threadTs,
+        blocks: blocks,});
+    
+  } catch (e) {
+    console.log(e);
+    await respond({
+      response_type: "ephemeral",
+      text: "Sorry, I couldn't generate a summary.",
+    });
+  }
+});
+
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
 
@@ -45,7 +149,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
       const history = await client.conversations.history({
         channel: channelId,
-        oldest: twentyFourHoursAgo,
+        //oldest: twentyFourHoursAgo,
         limit: 200,
       });
 
@@ -143,12 +247,11 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       response_type: "ephemeral",
       blocks: allBlocks,
     });
-
   } catch (e) {
     console.error(e);
     await respond({
       response_type: "ephemeral",
-      text: "Sorry, I couldn't generate a summary.",
+      text: "Sorry, I couldn't generate a summary. Usage: `/recap [#channel-1] [#channel-2] ...`",
     });
   }
 });
