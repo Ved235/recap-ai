@@ -45,75 +45,18 @@ app.event("app_mention", async ({ event, client }) => {
         messages.push(reply);
       }
       // Remove the last message because it would be the recap command
-      messages.pop(); 
+      messages.pop();
     }
 
-    console.log("messages",messages);
+    console.log("messages", messages);
     const userNames = await fetchUserNames(client, messages);
-    const transcript = messages
-      .map((msg) => {
-        const indent = msg.is_reply ? "  ↳ " : "";
-        const who = `<@${msg.user}>`;
-        const name = userNames[msg.user] || msg.user;
-        return `${indent}${who} (${name}): ${msg.text}`;
-      })
-      .join("\n");
-      const prompt = buildYourPrompt(transcript);
+    const blocks = await summarise(event, messages, userNames);
 
-      const aiRes = await axios.post(
-        "https://ai.hackclub.com/chat/completions",
-        {
-          messages: [{ role: "user", content: prompt }],
-        }
-      );
-
-      let rawSummary = aiRes.data.choices[0].message.content.trim();
-
-      let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
-
-      const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      for (const [uid, name] of Object.entries(userNames)) {
-        const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
-        cleaned = cleaned.replace(re, `<@${uid}>`);
-      }
-
-      cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
-
-      const bullets = cleaned
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.startsWith("•"))
-        .map((l) => l.replace(/^•\s*/, ""));
-
-      const blocks = [
-        {
-          type: "header",
-          text: { type: "plain_text", text: "📝 thread summary" },
-        },
-        { type: "divider" },
-        ...bullets.map((pt) => ({
-          type: "section",
-          text: { type: "mrkdwn", text: `• ${pt}` },
-        })),
-        { type: "divider" },
-        {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: `_Summarized for <@${
-                event.user
-              }> • ${new Date().toLocaleString()}_`,
-            },
-          ],
-        },
-      ];
-
-      await client.chat.postMessage({
-        channel: channelId,
-        thread_ts: threadTs,
-        blocks: blocks,});
-    
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: threadTs,
+      blocks: blocks,
+    });
   } catch (e) {
     console.log(e);
     await respond({
@@ -182,64 +125,8 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         }
       }
 
-      const transcript = enriched
-        .map((msg) => {
-          const indent = msg.is_reply ? "  ↳ " : "";
-          const who = `<@${msg.user}>`;
-          const name = userNames[msg.user] || msg.user;
-          return `${indent}${who} (${name}): ${msg.text}`;
-        })
-        .join("\n");
-      const prompt = buildYourPrompt(transcript);
-
-      const aiRes = await axios.post(
-        "https://ai.hackclub.com/chat/completions",
-        {
-          messages: [{ role: "user", content: prompt }],
-        }
-      );
-
-      let rawSummary = aiRes.data.choices[0].message.content.trim();
-
-      let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
-
-      const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      for (const [uid, name] of Object.entries(userNames)) {
-        const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
-        cleaned = cleaned.replace(re, `<@${uid}>`);
-      }
-
-      cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
-
-      const bullets = cleaned
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.startsWith("•"))
-        .map((l) => l.replace(/^•\s*/, ""));
-
-      allBlocks.push([
-        {
-          type: "header",
-          text: { type: "plain_text", text: "📝 #" + channelName + " summary" },
-        },
-        { type: "divider" },
-        ...bullets.map((pt) => ({
-          type: "section",
-          text: { type: "mrkdwn", text: `• ${pt}` },
-        })),
-        { type: "divider" },
-        {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: `_Summarized for <@${
-                command.user_id
-              }> • ${new Date().toLocaleString()}_`,
-            },
-          ],
-        },
-      ]);
+      blocks = await summarise(command, enriched, userNames);
+      allBlocks.push(blocks);
     }
     allBlocks = allBlocks.flat();
 
@@ -255,6 +142,65 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
     });
   }
 });
+
+async function summarise(event, messages, userNames) {
+  const transcript = messages
+    .map((msg) => {
+      const indent = msg.is_reply ? "  ↳ " : "";
+      const who = `<@${msg.user}>`;
+      const name = userNames[msg.user] || msg.user;
+      return `${indent}${who} (${name}): ${msg.text}`;
+    })
+    .join("\n");
+  const prompt = buildYourPrompt(transcript);
+  const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  let rawSummary = aiRes.data.choices[0].message.content.trim();
+
+  let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
+
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const [uid, name] of Object.entries(userNames)) {
+    const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
+    cleaned = cleaned.replace(re, `<@${uid}>`);
+  }
+
+  cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
+
+  const bullets = cleaned
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("•"))
+    .map((l) => l.replace(/^•\s*/, ""));
+
+  const blocks = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "📝 thread summary" },
+    },
+    { type: "divider" },
+    ...bullets.map((pt) => ({
+      type: "section",
+      text: { type: "mrkdwn", text: `• ${pt}` },
+    })),
+    { type: "divider" },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `_Summarized for <@${
+            event.user
+          }> • ${new Date().toLocaleString()}_`,
+        },
+      ],
+    },
+  ];
+
+  return blocks;
+}
 
 async function fetchUserNames(clients, messages) {
   const userIds = [
