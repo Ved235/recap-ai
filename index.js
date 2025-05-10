@@ -1,6 +1,7 @@
 require("dotenv").config();
 const axios = require("axios");
 const { App, ExpressReceiver } = require("@slack/bolt");
+const base_prompt = require("./prompt.js");
 
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -8,7 +9,7 @@ const receiver = new ExpressReceiver({
 
 receiver.app.post("/slack/events", (req, res, next) => {
   if (req.body?.type === "url_verification") {
-    return res.status(200).send(req.body.challenge);
+    return res.send(req.body.challenge);
   }
   next();
 });
@@ -22,85 +23,132 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
 
   try {
-    // 1) fetch last 50 messages
-    const history = await client.conversations.history({
-      channel: command.channel_id,
-      limit: 50
-    });
-
-    // 2) build userNames map
-    const userNames = await fetchUserNames(client, history.messages);
-
-    // 3) build transcript WITH parentheses
-    const transcript = history.messages
-      .reverse()
-      .filter(msg => !msg.subtype && typeof msg.text === "string")
-      .map(msg => {
-        if (!msg.user) {
-          return `_system_: ${msg.text || "[no text]"}`;
-        }
-        const name = userNames[msg.user] || msg.user;
-        return `<@${msg.user}> (${name}): ${msg.text || "[no text]"}`;
-      })
-      .join("\n");
-
-    // 4) build your prompt (omitted for brevity)
-    const prompt = buildYourPrompt(transcript);
-
-    // 5) call the AI
-    const aiRes = await axios.post(
-      "https://ai.hackclub.com/chat/completions",
-      { messages: [{ role: "user", content: prompt }] }
+    const parsedChannelMentions = Array.from(
+      command.text.matchAll(/<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g),
+      (match) => ({ id: match[1], name: match[2] })
     );
-    let rawSummary = aiRes.data.choices[0].message.content.trim();
 
-    // 6) strip ALL parenthesized bits so "(vedantsinghal07)" etc. are gone
-    let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
+    const targets = parsedChannelMentions.length
+      ? parsedChannelMentions
+      : [{ id: command.channel_id, name: command.channel_name }];
 
-    // 7) map full display‐names back into <@UID>
-    const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    for (const [uid, name] of Object.entries(userNames)) {
-      const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
-      cleaned = cleaned.replace(re, `<@${uid}>`);
-    }
+    let allBlocks = [];
 
-    // 8) collapse any accidental duplicate mentions
-    cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
+    for (const target of targets) {
+      const channelId = target.id;
+      const channelName = target.name;
 
-    // 9) split into bullets
-    const bullets = cleaned
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l.startsWith("•"))
-      .map(l => l.replace(/^•\s*/, ""));
+      console.log(
+        `Recapping channel ${channelId} (${channelName}) for user ${command.user_id}`
+      );
 
-    // 10) build Block Kit
-    const blocks = [
-      { type: "header", text: { type: "plain_text", text: "📝 Channel Summary" } },
-      { type: "divider" },
-      ...bullets.map(pt => ({
-        type: "section",
-        text: { type: "mrkdwn", text: `• ${pt}` }
-      })),
-      { type: "divider" },
-      {
-        type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            text: `_Summarized for <@${command.user_id}> • ${new Date().toLocaleString()}_`
+      const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+      const history = await client.conversations.history({
+        channel: channelId,
+        oldest: twentyFourHoursAgo,
+        limit: 200,
+      });
+
+      const topLevel = history.messages
+        .filter(
+          (msg) =>
+            !msg.subtype &&
+            msg.user &&
+            typeof msg.text === "string" &&
+            (!msg.thread_ts || msg.thread_ts === msg.ts)
+        )
+        .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
+
+      const userNames = await fetchUserNames(client, topLevel);
+
+      const enriched = [];
+      for (const msg of topLevel) {
+        enriched.push(msg);
+
+        if (msg.reply_count && msg.thread_ts === msg.ts) {
+          const { messages: thread } = await client.conversations.replies({
+            channel: command.channel_id,
+            ts: msg.ts,
+          });
+
+          for (const reply of thread.slice(1)) {
+            reply.is_reply = true;
+            enriched.push(reply);
           }
-        ]
+        }
       }
-    ];
 
-    await respond({ response_type: "ephemeral", blocks });
+      const transcript = enriched
+        .map((msg) => {
+          const indent = msg.is_reply ? "  ↳ " : "";
+          const who = `<@${msg.user}>`;
+          const name = userNames[msg.user] || msg.user;
+          return `${indent}${who} (${name}): ${msg.text}`;
+        })
+        .join("\n");
+      const prompt = buildYourPrompt(transcript);
+
+      const aiRes = await axios.post(
+        "https://ai.hackclub.com/chat/completions",
+        {
+          messages: [{ role: "user", content: prompt }],
+        }
+      );
+
+      let rawSummary = aiRes.data.choices[0].message.content.trim();
+
+      let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
+
+      const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      for (const [uid, name] of Object.entries(userNames)) {
+        const re = new RegExp(`\\b${escapeRe(name)}\\b`, "g");
+        cleaned = cleaned.replace(re, `<@${uid}>`);
+      }
+
+      cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
+
+      const bullets = cleaned
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith("•"))
+        .map((l) => l.replace(/^•\s*/, ""));
+
+      allBlocks.push([
+        {
+          type: "header",
+          text: { type: "plain_text", text: "📝 #" + channelName + " summary" },
+        },
+        { type: "divider" },
+        ...bullets.map((pt) => ({
+          type: "section",
+          text: { type: "mrkdwn", text: `• ${pt}` },
+        })),
+        { type: "divider" },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `_Summarized for <@${
+                command.user_id
+              }> • ${new Date().toLocaleString()}_`,
+            },
+          ],
+        },
+      ]);
+    }
+    allBlocks = allBlocks.flat();
+
+    await respond({
+      response_type: "ephemeral",
+      blocks: allBlocks,
+    });
 
   } catch (e) {
     console.error(e);
     await respond({
       response_type: "ephemeral",
-      text: "Sorry, I couldn't generate a clean summary just now."
+      text: "Sorry, I couldn't generate a summary.",
     });
   }
 });
@@ -132,49 +180,21 @@ async function fetchUserNames(clients, messages) {
 }
 
 function buildYourPrompt(transcript) {
-  // Note: The transcript provided to the AI includes user display names in parentheses
-  // like <@U123ABC> (Real Name). The AI needs to extract the <@U123ABC> part for mentions.
-  const prompt = `
-<identity>
-You are an AI assistant that reads Slack channel conversations and produces concise, high-value recaps.
-When asked for your name, you must respond with "ChannelRecapBot".
-Follow the user's requirements carefully & to the letter.
-Avoid content that violates privacy—do not include verbatim sensitive information.
-If asked to generate content unrelated to summarization of Slack channels, respond with "Sorry, I can't assist with that."
-Keep your answers short and impersonal.
-</identity>
-
-<instructions>
-You are a highly sophisticated automated summarization agent analyzing the provided Slack conversation transcript.
-Your goal is to extract the most important information and present it clearly.
-
-1.  **Analyze the Provided Transcript:** Read the entire transcript below. Pay close attention to the format: messages often look like \`<@USERID> (DisplayName): message content\`.
-2.  **Identify Key Information:** Focus *only* on:
-    *   Significant topics discussed.
-    *   Decisions made or proposed.
-    *   Action items assigned (note who is assigned).
-    *   Important links or files shared (if any).
-3.  **Ignore Noise:** Explicitly **ignore** the following:
-    *   Channel join/leave messages (e.g., "... has joined the channel").
-    *   Simple greetings, farewells, or acknowledgments (e.g., "hi", "thanks", "ok", "gg").
-    *   Filler messages or chit-chat that doesn't add substance.
-    *   Emojis or reactions (unless critical to understanding context, which is rare).
-4.  **Format Output:**
-    *   Produce exactly 4–6 concise bullet points.
-    *   Start each bullet point with "• ".
-    *   **Crucially:** When mentioning a user, use **only** the Slack mention syntax (\`<@USERID>\`) extracted from the transcript. **Do not** use the display name from the parentheses or any other format like '@username'. For example, if the transcript shows \`<@U08QK2PPAAJ> (vedantsinghal07): Hi\`, your summary should use \`<@U08QK2PPAAJ>\` if you need to mention that user. (Use <@UID> only if have a clear UID else just use partial name)
-5.  **Be Concise:** Avoid redundancy. Combine related points into a single bullet if possible. Do not describe the conversation itself; state the outcomes.
-</instructions>
-
-Here is the conversation transcript:
-${transcript}
-`.trim();
-  console.log(transcript)
+  const prompt =
+    "<identity>\n" +
+    base_prompt.identity +
+    "</identity>\n" +
+    "<instructions>\n" +
+    base_prompt.instructions +
+    "</instructions>\n" +
+    `Here is the conversation transcript:
+  ${transcript}
+  `.trim();
   return prompt;
 }
 
 (async () => {
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT;
   await app.start(port);
-  console.log(`⚡️ Bolt app is running on port ${port}`);
+  console.log(`Bolt app is running on port ${port}`);
 })();
