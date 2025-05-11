@@ -160,7 +160,7 @@ async function summarise(event, messages, userNames, channelName) {
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
   });
-
+  console.log(transcript);
   let rawSummary = aiRes.data.choices[0].message.content.trim();
 
   let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
