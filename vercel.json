@@ -11,5 +11,10 @@
             "src": "/slack/events",
             "dest": "/index.js"
         }
-    ]
+    ],
+    "functions": {
+        "index.js": {
+            "runtime": "nodejs22.x"
+        }
+    }
 }
