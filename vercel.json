@@ -1,14 +1,13 @@
 {
-    "version": 2,
-    "routes": [
-        {
-            "src": "/slack/events",
-            "dest": "/index.js"
-        }
-    ],
-    "functions": {
-        "index.js": {
-            "runtime": "nodejs22.x"
-        }
+  "version": 2,
+  "functions": {
+    "index.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 10,
+      "memory": 1024
     }
+  },
+  "routes": [
+    { "src": "/slack/events", "dest": "/index.js" }
+  ]
 }
