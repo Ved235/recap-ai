@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "index.js": {
+    "api/index.js": {
       "runtime": "@vercel/node@2.17.0",
       "maxDuration": 10,
       "memory": 1024
@@ -10,7 +10,7 @@
   "routes": [
     {
       "src": "/slack/events",
-      "dest": "index.js"
+      "dest": "api/index.js"
     }
   ]
 }
