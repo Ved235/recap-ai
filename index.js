@@ -86,9 +86,9 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       const channelId = target.id;
       const channelName = target.name;
 
-      console.log(
-        `Recapping channel ${channelId} (${channelName}) for user ${command.user_id}`
-      );
+      // console.log(
+      //   `Recapping channel ${channelId} (${channelName}) for user ${command.user_id}`
+      // );
 
       const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
       const history = await client.conversations.history({
@@ -96,7 +96,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         //oldest: twentyFourHoursAgo,
         limit: 200,
       });
-
+      console.log("history")
       const topLevel = history.messages
         .filter(
           (msg) =>
