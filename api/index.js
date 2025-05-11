@@ -6,7 +6,6 @@ const base_prompt = require("./prompt.js");
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   processBeforeResponse: true,
-  
 });
 
 receiver.app.post("/slack/events", (req, res, next) => {
@@ -36,23 +35,33 @@ app.event("app_mention", async ({ event, client }) => {
 
     if (event.thread_ts) {
       console.log("Thread message");
-      const { messages: thread } = await client.conversations.replies({
+      let { messages: thread } = await client.conversations.replies({
         channel: channelId,
         ts: threadTs,
       });
 
-      messages.push(thread[0]);
-      for (const reply of thread.slice(1)) {
-        reply.is_reply = true;
-        messages.push(reply);
+      thread = thread.filter(
+        (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
+      );
+
+      if (thread.length > 0) {
+        messages.push(thread[0]);
+        for (const reply of thread.slice(1)) {
+          reply.is_reply = true;
+          messages.push(reply);
+        }
+        // Remove the last message because it would be the recap command
+        messages.pop();
       }
-      // Remove the last message because it would be the recap command
-      messages.pop();
       const startTime = performance.now();
       const userNames = await fetchUserNames(client, messages);
       const blocks = await summarise(event, messages, userNames, "thread");
       const endTime = performance.now();
-      console.log(`Execution time for app_mention thread recap: ${endTime - startTime} milliseconds`);
+      console.log(
+        `Execution time for app_mention thread recap: ${
+          endTime - startTime
+        } milliseconds`
+      );
 
       await client.chat.postMessage({
         channel: channelId,
@@ -101,7 +110,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         //oldest: twentyFourHoursAgo,
         limit: 200,
       });
-      console.log("history")
+      console.log("history");
       const topLevel = history.messages
         .filter(
           (msg) =>
@@ -113,7 +122,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
 
       const userNames = await fetchUserNames(client, topLevel);
-      
+
       const enriched = [];
       for (const msg of topLevel) {
         enriched.push(msg);
