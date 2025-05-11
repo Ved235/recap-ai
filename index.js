@@ -30,7 +30,6 @@ app.event("app_mention", async ({ event, client }) => {
     const channelId = event.channel;
     const threadTs = event.thread_ts || event.ts;
     const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
-
     const messages = [];
 
     if (event.thread_ts) {
@@ -39,6 +38,7 @@ app.event("app_mention", async ({ event, client }) => {
         channel: channelId,
         ts: threadTs,
       });
+
       messages.push(thread[0]);
       for (const reply of thread.slice(1)) {
         reply.is_reply = true;
@@ -46,17 +46,19 @@ app.event("app_mention", async ({ event, client }) => {
       }
       // Remove the last message because it would be the recap command
       messages.pop();
+
+      console.log("messages", messages);
+      const userNames = await fetchUserNames(client, messages);
+      const blocks = await summarise(event, messages, userNames, "thread");
+
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: threadTs,
+        blocks: blocks,
+      });
+    } else {
+      return;
     }
-
-    console.log("messages", messages);
-    const userNames = await fetchUserNames(client, messages);
-    const blocks = await summarise(event, messages, userNames);
-
-    await client.chat.postMessage({
-      channel: channelId,
-      thread_ts: threadTs,
-      blocks: blocks,
-    });
   } catch (e) {
     console.log(e);
     await respond({
@@ -125,9 +127,10 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         }
       }
 
-      blocks = await summarise(command, enriched, userNames);
+      blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
+
     allBlocks = allBlocks.flat();
 
     await respond({
@@ -143,7 +146,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
   }
 });
 
-async function summarise(event, messages, userNames) {
+async function summarise(event, messages, userNames, channelName) {
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
@@ -152,6 +155,7 @@ async function summarise(event, messages, userNames) {
       return `${indent}${who} (${name}): ${msg.text}`;
     })
     .join("\n");
+
   const prompt = buildYourPrompt(transcript);
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
@@ -178,7 +182,7 @@ async function summarise(event, messages, userNames) {
   const blocks = [
     {
       type: "header",
-      text: { type: "plain_text", text: "📝 thread summary" },
+      text: { type: "plain_text", text: "📝 " + channelName + " summary" },
     },
     { type: "divider" },
     ...bullets.map((pt) => ({
