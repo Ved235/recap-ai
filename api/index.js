@@ -48,12 +48,13 @@ app.event("app_mention", async ({ event, client }) => {
       messages.pop();
 
       const userNames = await fetchUserNames(client, messages);
-      const blocks = await summarise(event, messages, userNames, "thread");
+      //const blocks = await summarise(event, messages, userNames, "thread");
 
       await client.chat.postMessage({
         channel: channelId,
         thread_ts: threadTs,
-        blocks: blocks,
+        text: "Generating summary...",
+        //blocks: blocks,
       });
     } else {
       return;
@@ -108,7 +109,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
 
       const userNames = await fetchUserNames(client, topLevel);
-
+      
       const enriched = [];
       for (const msg of topLevel) {
         enriched.push(msg);
