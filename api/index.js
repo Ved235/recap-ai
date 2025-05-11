@@ -160,6 +160,8 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 });
 
 async function summarise(event, messages, userNames, channelName) {
+  // fake delay to test slack timeout
+  await new Promise(resolve => setTimeout(resolve, 3000));
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
