@@ -20,55 +20,57 @@ const app = new App({
   receiver,
 });
 
-app.event("app_mention", async ({ event, client }) => {
+app.event("app_mention", async ({ event, context, client }) => {
   try {
-    const text = (event.text || "").toLowerCase();
-    if (!text.includes("recap")) {
-      console.log("Not a recap request");
-      return;
-    }
-
-    const channelId = event.channel;
-    const threadTs = event.thread_ts || event.ts;
-    const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
-    const messages = [];
-
-    if (event.thread_ts) {
-      console.log("Thread message");
-      let { messages: thread } = await client.conversations.replies({
-        channel: channelId,
-        ts: threadTs,
-      });
-
-      thread = thread.filter(
-        (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
-      );
-
-      if (thread.length > 0) {
-        messages.push(thread[0]);
-        for (const reply of thread.slice(1)) {
-          reply.is_reply = true;
-          messages.push(reply);
-        }
-        // Remove the last message because it would be the recap command
-        messages.pop();
+    if (context.retryNum && context.retryNum > 0) {
+      const text = (event.text || "").toLowerCase();
+      if (!text.includes("recap")) {
+        console.log("Not a recap request");
+        return;
       }
-      const startTime = performance.now();
-      const userNames = await fetchUserNames(client, messages);
-      const blocks = await summarise(event, messages, userNames, "thread");
-      const endTime = performance.now();
-      console.log(
-        `Execution time for app_mention thread recap: ${
-          endTime - startTime
-        } milliseconds`
-      );
 
-      await client.chat.postMessage({
-        channel: channelId,
-        thread_ts: threadTs,
-        text: "Generating summary...",
-        blocks: blocks,
-      });
+      const channelId = event.channel;
+      const threadTs = event.thread_ts || event.ts;
+      const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+      const messages = [];
+
+      if (event.thread_ts) {
+        console.log("Thread message");
+        let { messages: thread } = await client.conversations.replies({
+          channel: channelId,
+          ts: threadTs,
+        });
+
+        thread = thread.filter(
+          (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
+        );
+
+        if (thread.length > 0) {
+          messages.push(thread[0]);
+          for (const reply of thread.slice(1)) {
+            reply.is_reply = true;
+            messages.push(reply);
+          }
+          // Remove the last message because it would be the recap command
+          messages.pop();
+        }
+        const startTime = performance.now();
+        const userNames = await fetchUserNames(client, messages);
+        const blocks = await summarise(event, messages, userNames, "thread");
+        const endTime = performance.now();
+        console.log(
+          `Execution time for app_mention thread recap: ${
+            endTime - startTime
+          } milliseconds`
+        );
+
+        await client.chat.postMessage({
+          channel: channelId,
+          thread_ts: threadTs,
+          text: "Generating summary...",
+          blocks: blocks,
+        });
+      }
     } else {
       return;
     }
@@ -161,7 +163,8 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 
 async function summarise(event, messages, userNames, channelName) {
   // fake delay to test slack timeout
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
