@@ -47,7 +47,6 @@ app.event("app_mention", async ({ event, client }) => {
       // Remove the last message because it would be the recap command
       messages.pop();
 
-      console.log("messages", messages);
       const userNames = await fetchUserNames(client, messages);
       const blocks = await summarise(event, messages, userNames, "thread");
 
@@ -250,5 +249,6 @@ function buildYourPrompt(transcript) {
   // const port = process.env.PORT;
   // await app.start(port);
   // console.log(`Bolt app is running on port ${port}`);
-  module.exports = receiver.app;
 })();
+
+module.exports = receiver.app;
