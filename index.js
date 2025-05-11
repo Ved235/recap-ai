@@ -125,7 +125,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-
+      console.log(enriched);
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
@@ -156,10 +156,11 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
+  console.log("Prompt made successfully");
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
   });
-  console.log(transcript);
+  console.log(aiRes.data);
   let rawSummary = aiRes.data.choices[0].message.content.trim();
 
   let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
