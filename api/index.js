@@ -65,8 +65,7 @@ app.event("app_mention", async ({ event, context, client }) => {
         );
 
         await client.chat.postMessage({
-          channel: channelId,
-          thread_ts: threadTs,
+          channel: event.user,
           text: "Generating summary...",
           blocks: blocks,
         });
