@@ -75,6 +75,12 @@ app.event("app_mention", async ({ event, context, client }) => {
 
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
+  
+  //Send immediate response to Slack to avoid timeout
+  await respond({
+    response_type: "ephemeral",
+    text: "Generating summary...",
+  });
 
   try {
     const parsedChannelMentions = Array.from(
