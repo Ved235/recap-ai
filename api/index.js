@@ -23,55 +23,46 @@ const app = new App({
 app.event("app_mention", async ({ event, context, client }) => {
   try {
     if (context.retryNum && context.retryNum > 0) {
-      const text = (event.text || "").toLowerCase();
-      if (!text.includes("recap")) {
-        console.log("Not a recap request");
-        return;
-      }
-
-      const channelId = event.channel;
-      const threadTs = event.thread_ts || event.ts;
-      const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
-      const messages = [];
-
-      if (event.thread_ts) {
-        console.log("Thread message");
-        let { messages: thread } = await client.conversations.replies({
-          channel: channelId,
-          ts: threadTs,
-        });
-
-        thread = thread.filter(
-          (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
-        );
-
-        if (thread.length > 0) {
-          messages.push(thread[0]);
-          for (const reply of thread.slice(1)) {
-            reply.is_reply = true;
-            messages.push(reply);
-          }
-          // Remove the last message because it would be the recap command
-          messages.pop();
-        }
-        const startTime = performance.now();
-        const userNames = await fetchUserNames(client, messages);
-        const blocks = await summarise(event, messages, userNames, "thread");
-        const endTime = performance.now();
-        console.log(
-          `Execution time for app_mention thread recap: ${
-            endTime - startTime
-          } milliseconds`
-        );
-
-        await client.chat.postMessage({
-          channel: event.user,
-          text: "Generating summary...",
-          blocks: blocks,
-        });
-      }
-    } else {
       return;
+    }
+    const text = (event.text || "").toLowerCase();
+    if (!text.includes("recap")) {
+      console.log("Not a recap request");
+      return;
+    }
+
+    const channelId = event.channel;
+    const threadTs = event.thread_ts || event.ts;
+    const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+    const messages = [];
+
+    if (event.thread_ts) {
+      console.log("Thread message");
+      let { messages: thread } = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+      });
+
+      thread = thread.filter(
+        (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
+      );
+
+      if (thread.length > 0) {
+        messages.push(thread[0]);
+        for (const reply of thread.slice(1)) {
+          reply.is_reply = true;
+          messages.push(reply);
+        }
+        // Remove the last message because it would be the recap command
+        messages.pop();
+      }
+      const userNames = await fetchUserNames(client, messages);
+      const blocks = await summarise(event, messages, userNames, "thread");
+      await client.chat.postMessage({
+        channel: event.user,
+        text: "Generating summary...",
+        blocks: blocks,
+      });
     }
   } catch (e) {
     console.log(e);
@@ -100,10 +91,6 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
     for (const target of targets) {
       const channelId = target.id;
       const channelName = target.name;
-
-      // console.log(
-      //   `Recapping channel ${channelId} (${channelName}) for user ${command.user_id}`
-      // );
 
       const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
       const history = await client.conversations.history({
@@ -174,7 +161,6 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
-  console.log("Prompt made successfully");
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
   });
@@ -265,9 +251,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  // const port = process.env.PORT;
-  // await app.start(port);
-  // console.log(`Bolt app is running on port ${port}`);
+  //   const port = process.env.PORT;
+  //   await app.start(port);
+  //   console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;

@@ -25,7 +25,9 @@
                 "groups:history",
                 "users.profile:read",
                 "users:read",
-                "app_mentions:read"
+                "app_mentions:read",
+                "im:history",
+                "im:write"
             ]
         }
     },
