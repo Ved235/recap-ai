@@ -5,7 +5,6 @@ const base_prompt = require("./prompt.js");
 
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
-  processBeforeResponse: true,
 });
 
 receiver.app.post("/slack/events", (req, res, next) => {
@@ -66,8 +65,8 @@ app.event("app_mention", async ({ event, context, client }) => {
     }
   } catch (e) {
     console.log(e);
-    await respond({
-      response_type: "ephemeral",
+    await client.chat.postMessage({
+      channel: event.user,
       text: "Sorry, I couldn't generate a summary.",
     });
   }
@@ -75,12 +74,6 @@ app.event("app_mention", async ({ event, context, client }) => {
 
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
-  
-  //Send immediate response to Slack to avoid timeout
-  await respond({
-    response_type: "ephemeral",
-    text: "Generating summary...",
-  });
 
   try {
     const parsedChannelMentions = Array.from(
@@ -257,9 +250,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  //   const port = process.env.PORT;
-  //   await app.start(port);
-  //   console.log(`Bolt app is running on port ${port}`);
+  const port = process.env.PORT;
+  await app.start(port);
+  console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
