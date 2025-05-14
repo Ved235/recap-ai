@@ -86,18 +86,26 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       : [{ id: command.channel_id, name: command.channel_name }];
 
     let allBlocks = [];
+    const timeRegex = /\b(\d+)([d])\b/i;
+    const timeMatch = command.text.match(timeRegex);
+    let oldest;
+    
+    if (timeMatch) {
+      oldest =
+        (Date.now() - parseInt(timeMatch[1], 10) * 24 * 60 * 60 * 1000) / 1000;
+    } else {
+      oldest = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+    }
 
     for (const target of targets) {
       const channelId = target.id;
       const channelName = target.name;
-
-      const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
       const history = await client.conversations.history({
         channel: channelId,
-        //oldest: twentyFourHoursAgo,
-        limit: 200,
+        oldest: oldest,
+        limit: 100,
       });
-      console.log("history");
+
       const topLevel = history.messages
         .filter(
           (msg) =>
@@ -126,7 +134,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-      console.log(enriched);
+      
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
