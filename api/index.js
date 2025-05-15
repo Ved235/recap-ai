@@ -35,11 +35,9 @@ app.event("app_mention", async ({ event, context, client }) => {
 
     const channelId = event.channel;
     const threadTs = event.thread_ts || event.ts;
-    const twentyFourHoursAgo = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
     const messages = [];
 
     if (event.thread_ts) {
-      console.log("Thread message");
       let { messages: thread } = await client.conversations.replies({
         channel: channelId,
         ts: threadTs,
@@ -261,9 +259,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  const port = process.env.PORT;
-  await app.start(port);
-  console.log(`Bolt app is running on port ${port}`);
+  // const port = process.env.PORT;
+  // await app.start(port);
+  // console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
