@@ -5,12 +5,12 @@
     "features": {
         "bot_user": {
             "display_name": "slack ai",
-            "always_online": false
+            "always_online": true
         },
         "slash_commands": [
             {
                 "command": "/recap",
-                "url": "https://c4c7-223-190-86-250.ngrok-free.app/slack/events",
+                "url": "https://slack-ai-phi.vercel.app/slack/events",
                 "description": "summary",
                 "should_escape": true
             }
@@ -33,7 +33,7 @@
     },
     "settings": {
         "event_subscriptions": {
-            "request_url": "https://c4c7-223-190-86-250.ngrok-free.app/slack/events",
+            "request_url": "https://slack-ai-phi.vercel.app/slack/events",
             "bot_events": [
                 "app_mention"
             ]

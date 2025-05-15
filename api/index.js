@@ -26,7 +26,10 @@ app.event("app_mention", async ({ event, context, client }) => {
     }
     const text = (event.text || "").toLowerCase();
     if (!text.includes("recap")) {
-      console.log("Not a recap request");
+      await client.chat.postMessage({
+        channel: event.user,
+        text: "Usage is `@bot recap`",
+      });
       return;
     }
 
@@ -52,7 +55,7 @@ app.event("app_mention", async ({ event, context, client }) => {
           reply.is_reply = true;
           messages.push(reply);
         }
-        // Remove the last message because it would be the recap command
+        
         messages.pop();
       }
       const userNames = await fetchUserNames(client, messages);
@@ -89,7 +92,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
     const timeRegex = /\b(\d+)([d])\b/i;
     const timeMatch = command.text.match(timeRegex);
     let oldest;
-    
+
     if (timeMatch) {
       oldest =
         (Date.now() - parseInt(timeMatch[1], 10) * 24 * 60 * 60 * 1000) / 1000;
@@ -134,7 +137,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-      
+
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
