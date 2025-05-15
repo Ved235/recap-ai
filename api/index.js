@@ -135,7 +135,6 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
@@ -157,14 +156,15 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 
 async function summarise(event, messages, userNames, channelName) {
   // fake delay to test slack timeout
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
       const who = `<@${msg.user}>`;
       const name = userNames[msg.user] || msg.user;
-      return `${indent}${who} (${name}): ${msg.text}`;
+      const tsSeconds = Math.floor(parseFloat(msg.ts));
+      const dateToken = `<!date^${tsSeconds}^{date_num} {time}|${new Date(tsSeconds*1000).toLocaleString()}>`;
+      return `${indent}${dateToken} ${who} (${name}): ${msg.text}`;
     })
     .join("\n");
 
@@ -208,7 +208,7 @@ async function summarise(event, messages, userNames, channelName) {
         {
           type: "mrkdwn",
           text: `_Summarized for <@${
-            event.user
+            event.user_id || event.user
           }> • ${new Date().toLocaleString()}_`,
         },
       ],
@@ -259,9 +259,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  // const port = process.env.PORT;
-  // await app.start(port);
-  // console.log(`Bolt app is running on port ${port}`);
+  const port = process.env.PORT;
+  await app.start(port);
+  console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
