@@ -101,11 +101,12 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
       }
 
       const userNames = await fetchUserNames(client, messages);
-      //const blocks = await summarise(shortcut, messages, userNames, "thread");
+      const blocks = await summarise(shortcut, messages, userNames, "thread");
 
       await client.chat.postMessage({
         channel: shortcut.user.id,
         text: "Generating summary...",
+        blocks: blocks,
   
       });
     }
@@ -120,7 +121,7 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
 
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
-
+  console.log("Recap command triggered");
   try {
     const parsedChannelMentions = Array.from(
       command.text.matchAll(/<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g),
@@ -180,6 +181,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
+      console.log("Enriched messages");
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
@@ -306,9 +308,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  const port = process.env.PORT;
-  await app.start(port);
-  console.log(`Bolt app is running on port ${port}`);
+  // const port = process.env.PORT;
+  // await app.start(port);
+  // console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
