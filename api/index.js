@@ -76,6 +76,7 @@ app.event("app_mention", async ({ event, context, client }) => {
 
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   await ack();
+  console.log("Shortcut triggered");
   try {
     const channelId = shortcut.channel.id;
     const threadTs = shortcut.message.thread_ts;
@@ -100,12 +101,12 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
       }
 
       const userNames = await fetchUserNames(client, messages);
-      const blocks = await summarise(shortcut, messages, userNames, "thread");
+      //const blocks = await summarise(shortcut, messages, userNames, "thread");
 
       await client.chat.postMessage({
         channel: shortcut.user.id,
         text: "Generating summary...",
-        blocks: blocks,
+  
       });
     }
   } catch (e) {
@@ -305,9 +306,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  // const port = process.env.PORT;
-  // await app.start(port);
-  // console.log(`Bolt app is running on port ${port}`);
+  const port = process.env.PORT;
+  await app.start(port);
+  console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
