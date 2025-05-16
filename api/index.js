@@ -47,12 +47,12 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
       }
 
       const userNames = await fetchUserNames(client, messages);
-      //const blocks = await summarise(shortcut, messages, userNames, "thread");
+      const blocks = await summarise(shortcut, messages, userNames, "thread");
 
       await client.chat.postMessage({
         channel: shortcut.user.id,
         text: "Generating summary...",
-        
+        blocks: blocks,  
   
       });
     }
