@@ -19,6 +19,7 @@ const app = new App({
   receiver,
 });
 
+/*
 app.event("app_mention", async ({ event, context, client }) => {
   try {
     if (context.retryNum && context.retryNum > 0) {
@@ -34,10 +35,10 @@ app.event("app_mention", async ({ event, context, client }) => {
     }
 
     const channelId = event.channel;
-    const threadTs = event.thread_ts || event.ts;
+    const threadTs = event.thread_ts;
     const messages = [];
 
-    if (event.thread_ts) {
+    if (threadTs) {
       let { messages: thread } = await client.conversations.replies({
         channel: channelId,
         ts: threadTs,
@@ -53,7 +54,7 @@ app.event("app_mention", async ({ event, context, client }) => {
           reply.is_reply = true;
           messages.push(reply);
         }
-        
+
         messages.pop();
       }
       const userNames = await fetchUserNames(client, messages);
@@ -65,9 +66,52 @@ app.event("app_mention", async ({ event, context, client }) => {
       });
     }
   } catch (e) {
-    console.log(e);
     await client.chat.postMessage({
       channel: event.user,
+      text: "Sorry, I couldn't generate a summary.",
+    });
+  }
+});
+*/
+
+app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
+  await ack();
+  try {
+    const channelId = shortcut.channel.id;
+    const threadTs = shortcut.message.thread_ts;
+    const messages = [];
+
+    if (threadTs) {
+      let { messages: thread } = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+      });
+
+      thread = thread.filter(
+        (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
+      );
+
+      if (thread.length > 0) {
+        messages.push(thread[0]);
+        for (const reply of thread.slice(1)) {
+          reply.is_reply = true;
+          messages.push(reply);
+        }
+      }
+
+      const userNames = await fetchUserNames(client, messages);
+      const blocks = await summarise(shortcut, messages, userNames, "thread");
+
+      await client.chat.postMessage({
+        channel: shortcut.user.id,
+        text: "Generating summary...",
+        blocks: blocks,
+      });
+    }
+  } catch (e) {
+    console.log(e);
+    await client.chat.postMessage({
+      channel: shortcut.user.id,
       text: "Sorry, I couldn't generate a summary.",
     });
   }
@@ -155,15 +199,15 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 });
 
 async function summarise(event, messages, userNames, channelName) {
-  // fake delay to test slack timeout
-  await new Promise((resolve) => setTimeout(resolve, 1000));
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
       const who = `<@${msg.user}>`;
       const name = userNames[msg.user] || msg.user;
       const tsSeconds = Math.floor(parseFloat(msg.ts));
-      const dateToken = `<!date^${tsSeconds}^{date_num} {time}|${new Date(tsSeconds*1000).toLocaleString()}>`;
+      const dateToken = `<!date^${tsSeconds}^{date_num} {time}|${new Date(
+        tsSeconds * 1000
+      ).toLocaleString()}>`;
       return `${indent}${dateToken} ${who} (${name}): ${msg.text}`;
     })
     .join("\n");
@@ -172,7 +216,8 @@ async function summarise(event, messages, userNames, channelName) {
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
   });
-  console.log(aiRes.data);
+  
+
   let rawSummary = aiRes.data.choices[0].message.content.trim();
 
   let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
@@ -208,7 +253,7 @@ async function summarise(event, messages, userNames, channelName) {
         {
           type: "mrkdwn",
           text: `_Summarized for <@${
-            event.user_id || event.user
+            event.user_id || event.user || event.user.id
           }> • ${new Date().toLocaleString()}_`,
         },
       ],
@@ -259,9 +304,9 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  const port = process.env.PORT;
-  await app.start(port);
-  console.log(`Bolt app is running on port ${port}`);
+  // const port = process.env.PORT;
+  // await app.start(port);
+  // console.log(`Bolt app is running on port ${port}`);
 })();
 
 module.exports = receiver.app;
