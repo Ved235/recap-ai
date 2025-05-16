@@ -217,8 +217,17 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
-  const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
+  const aiRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
+    model: "llama-3.3-70b-versatile",
     messages: [{ role: "user", content: prompt }],
+  },{
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+  }).catch((err) => {
+    console.error("Error in API call:", err);
+    throw err;
   });
   console.log("AI response", aiRes.data);
 
