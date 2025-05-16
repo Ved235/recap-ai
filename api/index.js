@@ -47,12 +47,12 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
       }
 
       const userNames = await fetchUserNames(client, messages);
-      const blocks = await summarise(shortcut, messages, userNames, "thread");
+      //const blocks = await summarise(shortcut, messages, userNames, "thread");
 
       await client.chat.postMessage({
         channel: shortcut.user.id,
         text: "Generating summary...",
-        blocks: blocks,
+        
   
       });
     }
@@ -148,7 +148,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 });
 
 async function summarise(event, messages, userNames, channelName) {
-  console.log("Summarising messages", messages);
+  console.log("Summarising messages");
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
