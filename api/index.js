@@ -2,7 +2,7 @@ require("dotenv").config();
 const axios = require("axios");
 const { App, ExpressReceiver } = require("@slack/bolt");
 const base_prompt = require("./prompt.js");
-
+const serverless = require("serverless-http");
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
 });
