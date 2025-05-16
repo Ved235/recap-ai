@@ -26,7 +26,8 @@ const prompt = {
 
   5. Be Concise: Avoid redundancy by combining related points into a single bullet if possible.
      Do not describe the workflow of the conversation itself; state only the final outcomes or decisions.
-     In your recap, do not introduce any new names, actions or facts that do not appear in the transcript.`,
+     In your recap, do not introduce any new names, actions or facts that do not appear in the transcript.
+     YSWS stands for "You Ship We Ship". It is a Hack Club term`,
 };
 
 module.exports = prompt;
