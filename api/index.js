@@ -293,10 +293,10 @@ function buildYourPrompt(transcript) {
 }
 
 (async () => {
-  // const port = process.env.PORT;
-  // await app.start(port);
-  // console.log(`Bolt app is running on port ${port}`);
+  const port = process.env.PORT;
+  await app.start(port);
+  console.log(`Bolt app is running on port ${port}`);
 })();
 
-module.exports = receiver.app;
+
 
