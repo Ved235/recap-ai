@@ -1,7 +1,6 @@
 [functions]
-  directory = "api" // Tells Netlify your serverless functions are in the 'api' directory
-
+  directory = "api" 
 [[redirects]]
   from = "/slack/events"
-  to = "/.netlify/functions/index" // 'index' corresponds to api/index.js
-  force = true // Ensures this rule takes precedence
+  to = "/.netlify/functions/index" 
+  force = trues

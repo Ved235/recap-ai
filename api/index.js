@@ -267,5 +267,5 @@ function buildYourPrompt(transcript) {
   // await app.start(port);
   // console.log(`Bolt app is running on port ${port}`);
 })();
-export const handler = serverless(receiver.app);
+module.exports.handler = serverless(receiver.app);
 
