@@ -3,4 +3,4 @@
 [[redirects]]
   from = "/slack/events"
   to = "/.netlify/functions/index" 
-  force = trues
+  force = true
