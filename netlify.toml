@@ -1,6 +1,10 @@
 [functions]
-  directory = "api" 
+    directory = "api" 
+  
+[build]
+    functions = "api"
 [[redirects]]
-  from = "/slack/events"
-  to = "/.netlify/functions/index" 
-  force = true
+    from = "/slack/events"
+    to = "/.netlify/functions/index" 
+    status = 200
+    force = true
