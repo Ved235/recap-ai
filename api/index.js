@@ -199,6 +199,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 });
 
 async function summarise(event, messages, userNames, channelName) {
+  console.log("Summarising messages", messages);
   const transcript = messages
     .map((msg) => {
       const indent = msg.is_reply ? "  ↳ " : "";
@@ -216,7 +217,7 @@ async function summarise(event, messages, userNames, channelName) {
   const aiRes = await axios.post("https://ai.hackclub.com/chat/completions", {
     messages: [{ role: "user", content: prompt }],
   });
-  
+  console.log("AI response", aiRes.data);
 
   let rawSummary = aiRes.data.choices[0].message.content.trim();
 
