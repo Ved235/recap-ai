@@ -17,62 +17,8 @@ receiver.app.post("/slack/events", (req, res, next) => {
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   receiver,
+  logLevel: "DEBUG"
 });
-
-/*
-app.event("app_mention", async ({ event, context, client }) => {
-  try {
-    if (context.retryNum && context.retryNum > 0) {
-      return;
-    }
-    const text = (event.text || "").toLowerCase();
-    if (!text.includes("recap")) {
-      await client.chat.postMessage({
-        channel: event.user,
-        text: "Usage is `@bot recap`",
-      });
-      return;
-    }
-
-    const channelId = event.channel;
-    const threadTs = event.thread_ts;
-    const messages = [];
-
-    if (threadTs) {
-      let { messages: thread } = await client.conversations.replies({
-        channel: channelId,
-        ts: threadTs,
-      });
-
-      thread = thread.filter(
-        (msg) => !msg.subtype && msg.user && typeof msg.text === "string"
-      );
-
-      if (thread.length > 0) {
-        messages.push(thread[0]);
-        for (const reply of thread.slice(1)) {
-          reply.is_reply = true;
-          messages.push(reply);
-        }
-
-        messages.pop();
-      }
-      const userNames = await fetchUserNames(client, messages);
-      const blocks = await summarise(event, messages, userNames, "thread");
-      await client.chat.postMessage({
-        channel: event.user,
-        text: "Generating summary...",
-        blocks: blocks,
-      });
-    }
-  } catch (e) {
-    await client.chat.postMessage({
-      channel: event.user,
-      text: "Sorry, I couldn't generate a summary.",
-    });
-  }
-});
-*/
 
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   await ack();
@@ -321,5 +267,5 @@ function buildYourPrompt(transcript) {
   // await app.start(port);
   // console.log(`Bolt app is running on port ${port}`);
 })();
+export const handler = serverless(receiver.app);
 
-module.exports = receiver.app;
