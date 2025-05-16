@@ -1,17 +1,28 @@
 {
     "display_information": {
-        "name": "slack ai"
+        "name": "Recap AI",
+        "description": "AI-powered summaries for Slack channels & Threads",
+        "background_color": "#d32600"
     },
     "features": {
         "bot_user": {
-            "display_name": "slack ai",
+            "display_name": "Recap AI",
             "always_online": true
         },
+        "shortcuts": [
+            {
+                "name": "Recap",
+                "type": "message",
+                "callback_id": "app_shortcut",
+                "description": "Generate a summary of this thread"
+            }
+        ],
         "slash_commands": [
             {
                 "command": "/recap",
                 "url": "https://slack-ai-phi.vercel.app/slack/events",
-                "description": "summary",
+                "description": "Summarize messages",
+                "usage_hint": "[<time window> (in days)] [#channel …]",
                 "should_escape": true
             }
         ]
@@ -26,17 +37,14 @@
                 "users.profile:read",
                 "users:read",
                 "app_mentions:read",
-                "im:history",
                 "im:write"
             ]
         }
     },
     "settings": {
-        "event_subscriptions": {
-            "request_url": "https://slack-ai-phi.vercel.app/slack/events",
-            "bot_events": [
-                "app_mention"
-            ]
+        "interactivity": {
+            "is_enabled": true,
+            "request_url": "https://slack-ai-phi.vercel.app/slack/events"
         },
         "org_deploy_enabled": false,
         "socket_mode_enabled": false,
