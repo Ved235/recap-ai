@@ -35,6 +35,7 @@ const base_prompt = {
 const serverless = require("serverless-http");
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
+  endpoints:"/",
 });
 
 receiver.app.post("/slack/events", (req, res, next) => {
