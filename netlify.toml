@@ -7,3 +7,4 @@
     from = "/slack/events"
     to = "/.netlify/functions/index" 
     force = true
+    status = 200
