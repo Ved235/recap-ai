@@ -17,6 +17,7 @@
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "supabase": "^2.22.12"
   }
 }
