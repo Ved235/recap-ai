@@ -20,7 +20,7 @@
         "slash_commands": [
             {
                 "command": "/recap",
-                "url": "https://slack-ai-phi.vercel.app/slack/events",
+                "url": "https://vedved.hackclub.app/slack/events",
                 "description": "Summarize messages",
                 "usage_hint": "[<time window> (in days)] [#channel …]",
                 "should_escape": true
@@ -44,7 +44,7 @@
     "settings": {
         "interactivity": {
             "is_enabled": true,
-            "request_url": "https://slack-ai-phi.vercel.app/slack/events"
+            "request_url": "https://vedved.hackclub.app/slack/events"
         },
         "org_deploy_enabled": false,
         "socket_mode_enabled": false,
