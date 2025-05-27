@@ -130,7 +130,10 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         text: "Please make sure I am a member of the channels you want to recap.",
       });
     }
-
+    console.log(
+      "Joined channels:",
+      targets.map((t) => t.name)
+    );
     let allBlocks = [];
     const timeRegex = /\b(\d+)([d])\b/i;
     const timeMatch = command.text.match(timeRegex);
@@ -170,7 +173,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
 
         if (msg.reply_count && msg.thread_ts === msg.ts) {
           const { messages: thread } = await client.conversations.replies({
-            channel: command.channel_id,
+            channel: target.id,
             ts: msg.ts,
           });
 
@@ -187,9 +190,9 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         wasTruncated = true;
       }
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
-     
+
       allBlocks.push(blocks);
-      if(wasTruncated){
+      if (wasTruncated) {
         allBlocks.push({
           type: "context",
           elements: [
@@ -241,9 +244,7 @@ async function summarise(event, messages, userNames, channelName) {
       console.error("Error in API call:", err);
       throw err;
     });
- console.log(aiRes.data);
   let rawSummary = aiRes.data.choices[0].message.content.trim();
-console.log(rawSummary);
   let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
 
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
