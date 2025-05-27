@@ -180,15 +180,25 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-      if (enriched.length > 120) {
-        await respond({
-          response_type: "ephemeral",
-          text: `The channel ${channelName} has too many messages to summarize (over 120). Please narrow down the time range or select a different channel.`,
-        });
-        return;
+
+      let wasTruncated = false;
+      if (enriched.length > 150) {
+        enriched.splice(150);
+        wasTruncated = true;
       }
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
+      if(wasTruncated){
+        allBlocks.push({
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `*Note:* The summary was truncated to the most recent 150 messages in this channel.`,
+            },
+          ],
+        });
+      }
     }
 
     allBlocks = allBlocks.flat();
