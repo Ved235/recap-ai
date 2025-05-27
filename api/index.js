@@ -180,7 +180,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-      if(enriched.length > 120){
+      if (enriched.length > 120) {
         await respond({
           response_type: "ephemeral",
           text: `The channel ${channelName} has too many messages to summarize (over 120). Please narrow down the time range or select a different channel.`,
@@ -223,24 +223,13 @@ async function summarise(event, messages, userNames, channelName) {
 
   const prompt = buildYourPrompt(transcript);
   const aiRes = await axios
-    .post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-        messages: [{ role: "user", content: prompt }],
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        },
-      }
-    )
+    .post("https://ai.hackclub.com/chat/completions", {
+      messages: [{ role: "user", content: prompt }],
+    })
     .catch((err) => {
       console.error("Error in API call:", err);
       throw err;
     });
-  console.log("AI response", aiRes.data);
 
   let rawSummary = aiRes.data.choices[0].message.content.trim();
 
