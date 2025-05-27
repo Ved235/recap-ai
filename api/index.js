@@ -187,6 +187,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         wasTruncated = true;
       }
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
+     
       allBlocks.push(blocks);
       if(wasTruncated){
         allBlocks.push({
@@ -240,9 +241,9 @@ async function summarise(event, messages, userNames, channelName) {
       console.error("Error in API call:", err);
       throw err;
     });
-
+ console.log(aiRes.data);
   let rawSummary = aiRes.data.choices[0].message.content.trim();
-
+console.log(rawSummary);
   let cleaned = rawSummary.replace(/\s*\([^)]*\)/g, "");
 
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -252,7 +253,7 @@ async function summarise(event, messages, userNames, channelName) {
   }
 
   cleaned = cleaned.replace(/(<@[^>]+>)(?:\s+\1)+/g, "$1");
-
+  cleaned = cleaned.replace(/^\s*\*\s/gm, "• ");
   const bullets = cleaned
     .split(/\r?\n/)
     .map((l) => l.trim())
