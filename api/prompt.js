@@ -23,11 +23,12 @@ const prompt = {
       * Crucially: When mentioning a user, use only the Slack mention syntax (\`<@USERID>\`) extracted from the transcript. Do not use the display name from the parentheses or any other format like '@username'. For example, if the transcript shows \`<@U08QK2PPAAJ> (vedantsinghal07): Hi\`, your summary should use \`<@U08QK2PPAAJ>\` if you need to mention that user. (Use <@UID> only if have a clear UID).
       * If you dont have a clear UID or identity of the user, use the name they are being referred to in the conversation, but do not @ this name.
       * Any Slack date-format tokens (<!date^…^…|…>) in the transcript should be preserved in your summary. Feel free to use those tokens directly in your bullets to show when things happened.
-
-  5. Be Concise: Avoid redundancy by combining related points into a single bullet if possible.
-     Do not describe the workflow of the conversation itself; state only the final outcomes or decisions.
-     In your recap, do not introduce any new names, actions or facts that do not appear in the transcript.
-     YSWS stands for "You Ship We Ship". It is a Hack Club term`,
+      * Only include dates or times in your bullets if they are essential to understanding a decision or action. Otherwise omit them.
+  5. Be Concise: 
+      * Avoid redundancy by combining related points into a single bullet if possible.
+      * Do not describe the workflow of the conversation itself; state only the final outcomes or decisions.
+      * In your recap, do not introduce any new names, actions or facts that do not appear in the transcript.
+      * YSWS stands for "You Ship We Ship". It is a Hack Club term`,
 };
 
 module.exports = prompt;

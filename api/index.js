@@ -47,7 +47,7 @@ receiver.app.post("/slack/events", (req, res, next) => {
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   receiver,
-  logLevel: "DEBUG"
+  logLevel: "DEBUG",
 });
 
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
@@ -57,6 +57,17 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
     const channelId = shortcut.channel.id;
     const threadTs = shortcut.message.thread_ts;
     const messages = [];
+
+    try {
+      await client.conversations.join({
+        channel: channelId,
+      });
+    } catch (e) {
+      await client.chat.postMessage({
+        channel: shortcut.user.id,
+        text: "Please make sure I am a member of the channel you want to recap.",
+      });
+    }
 
     if (threadTs) {
       let { messages: thread } = await client.conversations.replies({
@@ -82,8 +93,7 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
       await client.chat.postMessage({
         channel: shortcut.user.id,
         text: "Generating summary...",
-        blocks: blocks,  
-  
+        blocks: blocks,
       });
     }
   } catch (e) {
@@ -107,6 +117,19 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
     const targets = parsedChannelMentions.length
       ? parsedChannelMentions
       : [{ id: command.channel_id, name: command.channel_name }];
+
+    try {
+      for (const target of targets) {
+        await client.conversations.join({
+          channel: target.id,
+        });
+      }
+    } catch (e) {
+      await client.chat.postMessage({
+        channel: command.user_id,
+        text: "Please make sure I am a member of the channels you want to recap.",
+      });
+    }
 
     let allBlocks = [];
     const timeRegex = /\b(\d+)([d])\b/i;
@@ -157,7 +180,13 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           }
         }
       }
-      console.log("Enriched messages");
+      if(enriched.length > 120){
+        await respond({
+          response_type: "ephemeral",
+          text: `The channel ${channelName} has too many messages to summarize (over 120). Please narrow down the time range or select a different channel.`,
+        });
+        return;
+      }
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
       allBlocks.push(blocks);
     }
@@ -193,18 +222,24 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
-  const aiRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-    messages: [{ role: "user", content: prompt }],
-  },{
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-  }).catch((err) => {
-    console.error("Error in API call:", err);
-    throw err;
-  });
+  const aiRes = await axios
+    .post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages: [{ role: "user", content: prompt }],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+      }
+    )
+    .catch((err) => {
+      console.error("Error in API call:", err);
+      throw err;
+    });
   console.log("AI response", aiRes.data);
 
   let rawSummary = aiRes.data.choices[0].message.content.trim();
@@ -297,6 +332,3 @@ function buildYourPrompt(transcript) {
   await app.start(port);
   console.log(`Bolt app is running on port ${port}`);
 })();
-
-
-
