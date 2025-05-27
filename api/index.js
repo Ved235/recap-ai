@@ -130,10 +130,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
         text: "Please make sure I am a member of the channels you want to recap.",
       });
     }
-    console.log(
-      "Joined channels:",
-      targets.map((t) => t.name)
-    );
+
     let allBlocks = [];
     const timeRegex = /\b(\d+)([d])\b/i;
     const timeMatch = command.text.match(timeRegex);
