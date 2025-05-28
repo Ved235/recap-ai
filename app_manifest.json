@@ -2,7 +2,8 @@
     "display_information": {
         "name": "Recap AI",
         "description": "AI-powered summaries for Slack channels & Threads",
-        "background_color": "#d32600"
+        "background_color": "#d32600",
+        "long_description": "Turn Slack conversations into high-value recaps.\r\n• Use the Recap Thread message shortcut on any thread\r\n• Run /recap [time] [#channels] to summarize channel over the last 1d, 3d, etc\r\nPerfect for catching up in seconds without scrolling through hundreds of messages"
     },
     "features": {
         "bot_user": {
@@ -30,14 +31,16 @@
     "oauth_config": {
         "scopes": {
             "bot": [
+                "app_mentions:read",
                 "channels:history",
                 "chat:write",
+                "chat:write.public",
                 "commands",
                 "groups:history",
+                "im:write",
                 "users.profile:read",
                 "users:read",
-                "app_mentions:read",
-                "im:write"
+                "channels:join"
             ]
         }
     },
