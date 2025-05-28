@@ -9,7 +9,7 @@ An open-sourced slack bot that turns long conversations in short and high value 
   <img src="https://github.com/user-attachments/assets/aa8e00c3-36d5-4aff-856e-478d4b37b6d5"/>
 </p>
 
-- **Channel Recap**: Run the slash command `/recap [time] [#channels…]` to summarize the last _N_ days of activity across one or more channels
+- **Channel Recap**: Run the slash command `/recap [time] [#channels…]` to summarize the last _N_ days of activity across one or more channels. Currently this feature is limited to a maximum of 150 messages in one summary.
 
 
 ## Running it yourself
