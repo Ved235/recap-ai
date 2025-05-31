@@ -301,4 +301,4 @@ function buildYourPrompt(transcript) {
 //   console.log(`Bolt app is running on port ${port}`);
 // })();
 
-module.exports.handler = receiver.app;
+module.exports = receiver.app;
