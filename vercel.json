@@ -9,6 +9,10 @@
     {
       "src": "/slack/events",
       "dest": "api/index.js"
+    },
+    {
+      "src": "/api/cron",
+      "dest": "api/index.js"
     }
   ],
   "crons": [
