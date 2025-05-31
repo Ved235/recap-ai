@@ -29,8 +29,7 @@ receiver.app.post("/api/cron", async (req, res) => {
   console.log("Cron job triggered");
 
   try {
-    const channelsToSummarize = process.env.CRON_CHANNELS?.split(".");
-    trim() || [];
+    const channelsToSummarize = process.env.CRON_CHANNELS?.split(",");
     const summaryChannelId = process.env.SUMMARY_CHANNEL_ID;
 
     if (channelsToSummarize.length === 0) {
@@ -50,7 +49,7 @@ receiver.app.post("/api/cron", async (req, res) => {
       try {
         await app.client.conversations.join({ channel: channelId });
         await app.client.conversations.join({ channel: summaryChannelId });
-
+        
         const channelInfo = await app.client.conversations.info({
           channel: channelId,
         });
