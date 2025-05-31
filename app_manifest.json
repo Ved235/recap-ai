@@ -33,6 +33,7 @@
             "bot": [
                 "app_mentions:read",
                 "channels:history",
+                "channels:join",
                 "chat:write",
                 "chat:write.public",
                 "commands",
@@ -40,7 +41,7 @@
                 "im:write",
                 "users.profile:read",
                 "users:read",
-                "channels:join"
+                "channels:read"
             ]
         }
     },
