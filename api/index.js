@@ -163,7 +163,7 @@ async function findOrCreateChannelThread(summaryChannelId, channelName) {
 
     const threadStarter = history.messages.find(msg => 
       msg.text && 
-      msg.text.includes(`Daily summaries for #${channelName}`) &&
+      msg.text === `Daily summaries for #${channelName}` &&
       (!msg.thread_ts || msg.thread_ts === msg.ts)
     );
 
