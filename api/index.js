@@ -23,6 +23,7 @@ const app = new App({
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   await ack();
   console.log("Shortcut triggered");
+  console.log(base_prompt)
   try {
     const channelId = shortcut.channel.id;
     const threadTs = shortcut.message.thread_ts;
@@ -203,6 +204,7 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
+  console.log("Prompt for AI:", prompt);
   const aiRes = await axios
     .post("https://ai.hackclub.com/chat/completions", {
       messages: [{ role: "user", content: prompt }],
