@@ -1,7 +1,7 @@
 require("dotenv").config();
 const axios = require("axios");
 const { App, ExpressReceiver } = require("@slack/bolt");
-const base_prompt = require("./prompt.js")
+const base_prompt = require("./prompt.js");
 const serverless = require("serverless-http");
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -24,7 +24,6 @@ const app = new App({
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   await ack();
   console.log("Shortcut triggered");
-  console.log(base_prompt)
   try {
     const channelId = shortcut.channel.id;
     const threadTs = shortcut.message.thread_ts;
@@ -205,7 +204,6 @@ async function summarise(event, messages, userNames, channelName) {
     .join("\n");
 
   const prompt = buildYourPrompt(transcript);
-  console.log("Prompt for AI:", prompt);
   const aiRes = await axios
     .post("https://ai.hackclub.com/chat/completions", {
       messages: [{ role: "user", content: prompt }],
