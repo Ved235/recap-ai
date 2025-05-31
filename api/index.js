@@ -21,6 +21,188 @@ const app = new App({
   logLevel: "DEBUG",
 });
 
+receiver.app.post("/api/cron", async (req, res) => {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  console.log("Cron job triggered");
+
+  try {
+    const channelsToSummarize = process.env.CRON_CHANNELS?.split(".");
+    trim() || [];
+    const summaryChannelId = process.env.SUMMARY_CHANNEL_ID;
+
+    if (channelsToSummarize.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No channels configured for summary" });
+    }
+
+    if (!summaryChannelId) {
+      return res
+        .status(400)
+        .json({ error: "SUMMARY_CHANNEL_ID not configured" });
+    }
+    
+    const oldest = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
+    for (const channelId of channelsToSummarize) {
+      try {
+        await app.client.conversations.join({ channel: channelId });
+        await app.client.conversations.join({ channel: summaryChannelId });
+
+        const channelInfo = await app.client.conversations.info({
+          channel: channelId,
+        });
+        const channelName = channelInfo.channel.name;
+
+        const history = await app.client.conversations.history({
+          channel: channelId,
+          oldest: oldest,
+          limit: 100,
+        });
+
+        const topLevel = history.messages
+          .filter(
+            (msg) =>
+              !msg.subtype &&
+              msg.user &&
+              typeof msg.text === "string" &&
+              (!msg.thread_ts || msg.thread_ts === msg.ts)
+          )
+          .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
+
+        if (topLevel.length === 0) {
+          console.log(
+            `No messages found in ${channelName} for the last 24 hours`
+          );
+          continue;
+        }
+
+        const userNames = await fetchUserNames(app.client, topLevel);
+
+        const enriched = [];
+        for (const msg of topLevel) {
+          enriched.push(msg);
+
+          if (msg.reply_count && msg.thread_ts === msg.ts) {
+            const { messages: thread } = await app.client.conversations.replies(
+              {
+                channel: channelId,
+                ts: msg.ts,
+              }
+            );
+
+            for (const reply of thread.slice(1)) {
+              reply.is_reply = true;
+              enriched.push(reply);
+            }
+          }
+        }
+
+        let wasTruncated = false;
+        if (enriched.length > 150) {
+          enriched.splice(150);
+          wasTruncated = true;
+        }
+
+        const mockEvent = {
+          user_id: "CRON_JOB",
+          user: "CRON_JOB",
+        };
+
+        const blocks = await summarise(
+          mockEvent,
+          enriched,
+          userNames,
+          "#" + channelName
+        );
+
+        const finalBlocks = [...blocks];
+        if (wasTruncated) {
+          finalBlocks.push({
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `*Note:* The summary was truncated to the most recent 150 messages.`,
+              },
+            ],
+          });
+        }
+
+        const threadTs = await findOrCreateChannelThread(
+          summaryChannelId,
+          channelName
+        );
+
+        await app.client.chat.postMessage({
+          channel: summaryChannelId,
+          thread_ts: threadTs,
+          text: `📝 Daily Summary for #${channelName} - ${new Date().toLocaleDateString()}`,
+          blocks: finalBlocks,
+        });
+
+        console.log(
+          `Posted daily summary for #${channelName} in thread ${threadTs}`
+        );
+      } catch (error) {
+        console.error(`Error processing channel ${channelId}:`, error);
+      }
+    }
+
+    res.status(200).json({ message: "Cron job completed successfully" });
+  } catch (e) {}
+});
+
+async function findOrCreateChannelThread(summaryChannelId, channelName) {
+  try {
+    const history = await app.client.conversations.history({
+      channel: summaryChannelId,
+      limit: 100,
+    });
+
+    const threadStarter = history.messages.find(msg => 
+      msg.text && 
+      msg.text.includes(`Daily summaries for #${channelName}`) &&
+      (!msg.thread_ts || msg.thread_ts === msg.ts)
+    );
+
+    if (threadStarter) {
+      return threadStarter.ts;
+    }
+
+    const response = await app.client.chat.postMessage({
+      channel: summaryChannelId,
+      text: `Daily summaries for #${channelName}`,
+      blocks: [
+        {
+          type: "header",
+          text: { 
+            type: "plain_text", 
+            text: `Daily summaries for #${channelName}` 
+          },
+        },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `This thread contains daily summaries for <#${channelName}>. Each summary covers the previous 24 hours of activity.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    return response.ts;
+
+  } catch (error) {
+    console.error(`Error managing thread for ${channelName}:`, error);
+    throw error;
+  }
+}
+
 app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   await ack();
   console.log("Shortcut triggered");
@@ -300,6 +482,6 @@ function buildYourPrompt(transcript) {
 //   const port = process.env.PORT;
 //   await app.start(port);
 //   console.log(`Bolt app is running on port ${port}`);
-// })();
+// })();  
 
 module.exports = receiver.app;
