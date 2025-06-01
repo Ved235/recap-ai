@@ -20,7 +20,7 @@ const app = new App({
   logLevel: "DEBUG",
 });
 
-receiver.app.post("/api/cron", async (req, res) => {
+receiver.app.get("/api/cron", async (req, res) => {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
