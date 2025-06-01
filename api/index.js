@@ -42,13 +42,13 @@ receiver.app.get("/api/cron", async (req, res) => {
         .status(400)
         .json({ error: "SUMMARY_CHANNEL_ID not configured" });
     }
-    
+
     const oldest = (Date.now() - 24 * 60 * 60 * 1000) / 1000;
     for (const channelId of channelsToSummarize) {
       try {
         await app.client.conversations.join({ channel: channelId });
         await app.client.conversations.join({ channel: summaryChannelId });
-        
+
         const channelInfo = await app.client.conversations.info({
           channel: channelId,
         });
@@ -57,7 +57,7 @@ receiver.app.get("/api/cron", async (req, res) => {
         const history = await app.client.conversations.history({
           channel: channelId,
           oldest: oldest,
-          limit: 100,
+          limit: 250,
         });
 
         const topLevel = history.messages
@@ -99,14 +99,14 @@ receiver.app.get("/api/cron", async (req, res) => {
         }
 
         let wasTruncated = false;
-        if (enriched.length > 150) {
-          enriched.splice(150);
+        if (enriched.length > 250) {
+          enriched.splice(0, enriched.length - 250);
           wasTruncated = true;
         }
 
         const mockEvent = {
-          user_id: "CRON_JOB",
-          user: "CRON_JOB",
+          user_id: "Daily_Summary",
+          user: "Daily_Summary",
         };
 
         const blocks = await summarise(
@@ -123,7 +123,7 @@ receiver.app.get("/api/cron", async (req, res) => {
             elements: [
               {
                 type: "mrkdwn",
-                text: `*Note:* The summary was truncated to the most recent 150 messages.`,
+                text: `*Note:* The summary was truncated to the most recent 250 messages.`,
               },
             ],
           });
@@ -131,7 +131,8 @@ receiver.app.get("/api/cron", async (req, res) => {
 
         const threadTs = await findOrCreateChannelThread(
           summaryChannelId,
-          channelName
+          channelName,
+          channelId
         );
 
         await app.client.chat.postMessage({
@@ -153,17 +154,22 @@ receiver.app.get("/api/cron", async (req, res) => {
   } catch (e) {}
 });
 
-async function findOrCreateChannelThread(summaryChannelId, channelName) {
+async function findOrCreateChannelThread(
+  summaryChannelId,
+  channelName,
+  channelId
+) {
   try {
     const history = await app.client.conversations.history({
       channel: summaryChannelId,
-      limit: 100,
+      limit: 250,
     });
 
-    const threadStarter = history.messages.find(msg => 
-      msg.text && 
-      msg.text === `Daily summaries for #${channelName}` &&
-      (!msg.thread_ts || msg.thread_ts === msg.ts)
+    const threadStarter = history.messages.find(
+      (msg) =>
+        msg.text &&
+        msg.text === `Daily summaries for #${channelName}` &&
+        (!msg.thread_ts || msg.thread_ts === msg.ts)
     );
 
     if (threadStarter) {
@@ -176,9 +182,9 @@ async function findOrCreateChannelThread(summaryChannelId, channelName) {
       blocks: [
         {
           type: "header",
-          text: { 
-            type: "plain_text", 
-            text: `Daily summaries for #${channelName}` 
+          text: {
+            type: "plain_text",
+            text: `Daily summaries for #${channelName}`,
           },
         },
         {
@@ -186,7 +192,7 @@ async function findOrCreateChannelThread(summaryChannelId, channelName) {
           elements: [
             {
               type: "mrkdwn",
-              text: `This thread contains daily summaries for <#${channelName}>. Each summary covers the previous 24 hours of activity.`,
+              text: `This thread contains daily summaries for <#${channelId}>. Each summary covers the previous 24 hours of activity.`,
             },
           ],
         },
@@ -194,7 +200,6 @@ async function findOrCreateChannelThread(summaryChannelId, channelName) {
     });
 
     return response.ts;
-
   } catch (error) {
     console.error(`Error managing thread for ${channelName}:`, error);
     throw error;
@@ -320,7 +325,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       const history = await client.conversations.history({
         channel: channelId,
         oldest: oldest,
-        limit: 100,
+        limit: 250,
       });
 
       const topLevel = history.messages
@@ -353,8 +358,8 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
       }
 
       let wasTruncated = false;
-      if (enriched.length > 150) {
-        enriched.splice(150);
+      if (enriched.length > 250) {
+        enriched.splice(0, enriched.length - 250);
         wasTruncated = true;
       }
       blocks = await summarise(command, enriched, userNames, "#" + channelName);
@@ -366,7 +371,7 @@ app.command("/recap", async ({ command, ack, respond, client }) => {
           elements: [
             {
               type: "mrkdwn",
-              text: `*Note:* The summary was truncated to the most recent 150 messages in this channel.`,
+              text: `*Note:* The summary was truncated to the most recent 250 messages in this channel.`,
             },
           ],
         });
@@ -500,6 +505,6 @@ function buildYourPrompt(transcript) {
 //   const port = process.env.PORT;
 //   await app.start(port);
 //   console.log(`Bolt app is running on port ${port}`);
-// })();  
+// })();
 
 module.exports = receiver.app;
