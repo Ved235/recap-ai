@@ -256,25 +256,26 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   }
 });
 
-app.command("/add", async ({ command, ack, respond, client }) => {
-  await ack();
-  console.log("Add command triggered");
-  try {
-    const parsedChannelMentions = Array.from(
-      command.text.matchAll(/<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g),
-      (match) => ({ id: match[1], name: match[2] })
-    );
+// app.command("/add", async ({ command, ack, respond, client }) => {
+//   await ack();
+//   console.log("Add command triggered");
+//   try {
+//     const parsedChannelMentions = Array.from(
+//       command.text.matchAll(/<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g),
+//       (match) => ({ id: match[1], name: match[2] })
+//     );
 
-    const targets = parsedChannelMentions.length
-      ? parsedChannelMentions
-      : [{ id: command.channel_id, name: command.channel_name }];
+//     const targets = parsedChannelMentions.length
+//       ? parsedChannelMentions
+//       : [{ id: command.channel_id, name: command.channel_name }];
 
-    console.log(targets.map(t => t.id).join(','));
+//     console.log(targets.map(t => t.id).join(','));
 
-  } catch (e) {
-    console.log(e);
-  }
-});
+//   } catch (e) {
+//     console.log(e);
+//   }
+// });
+
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
   console.log("Recap command triggered");
