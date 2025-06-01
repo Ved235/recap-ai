@@ -2,7 +2,6 @@ require("dotenv").config();
 const axios = require("axios");
 const { App, ExpressReceiver } = require("@slack/bolt");
 const base_prompt = require("./prompt.js");
-const {put,head} = require('@vercel/blob');
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   processBeforeResponse: true,
