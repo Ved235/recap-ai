@@ -2,7 +2,7 @@ require("dotenv").config();
 const axios = require("axios");
 const { App, ExpressReceiver } = require("@slack/bolt");
 const base_prompt = require("./prompt.js");
-const serverless = require("serverless-http");
+const {put,head} = require('@vercel/blob');
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   processBeforeResponse: true,
@@ -257,6 +257,25 @@ app.shortcut("app_shortcut", async ({ shortcut, ack, client }) => {
   }
 });
 
+app.command("/add", async ({ command, ack, respond, client }) => {
+  await ack();
+  console.log("Add command triggered");
+  try {
+    const parsedChannelMentions = Array.from(
+      command.text.matchAll(/<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g),
+      (match) => ({ id: match[1], name: match[2] })
+    );
+
+    const targets = parsedChannelMentions.length
+      ? parsedChannelMentions
+      : [{ id: command.channel_id, name: command.channel_name }];
+
+    console.log(targets.map(t => t.id).join(','));
+
+  } catch (e) {
+    console.log(e);
+  }
+});
 app.command("/recap", async ({ command, ack, respond, client }) => {
   await ack();
   console.log("Recap command triggered");
